@@ -1,28 +1,97 @@
 import torch
 import torch.nn as nn
 
+"""
+Neural Network with LoRA Architecture:
+
+Input (10)
+    │
+    ▼
+┌──────────────────┐      ┌──────────────────────────────┐
+│  model.fc1 (10)  │ ───▶ │ loralayer1 (A:10x4, B:4x20)  │
+└──────────────────┘      └──────────────────────────────┘
+    │                             │
+    └───────────────┬─────────────┘
+                    ▼
+                  ReLU
+                    │
+                    ▼
+┌──────────────────┐      ┌──────────────────────────────┐
+│  model.fc2 (20)  │ ───▶ │ loralayer2 (A:20x4, B:4x20)  │
+└──────────────────┘      └──────────────────────────────┘
+    │                             │
+    └───────────────┬─────────────┘
+                    ▼
+                  ReLU
+                    │
+                    ▼
+┌──────────────────┐      ┌──────────────────────────────┐
+│  model.fc3 (20)  │ ───▶ │ loralayer3 (A:20x4, B:4x20)  │
+└──────────────────┘      └──────────────────────────────┘
+    │                             │
+    └───────────────┬─────────────┘
+                    ▼
+                  ReLU
+                    │
+                    ▼
+┌──────────────────┐
+│  model.fc4 (20)  │ (Frozen, No LoRA)
+└──────────────────┘
+    │
+    ▼
+Output (10)
+
+Feature	lora.py
+Logic	$W + (A \times B)$
+Layers	Simple nn.Linear
+Parameters	~1,000
+Training	Trains $A$ and $B$
+"""
+
 class LoRAWeights(nn.Module):
+    """
+    A class that implements the LoRA weights.
+    """
     def __init__(self, d, k, r, alpha):
+        """
+        Initializes the LoRA weights.
+        :param d: The number of rows in matrix W.
+        :param k: The number of columns in matrix W.
+        :param r: The rank hyperparameter.
+        :param alpha: A scaling parameter that controls the strength of the adaptation.
+        """
         super(LoRAWeights, self).__init__()
-        # Matrix A is initialized from a Gaussian distribution
+        # Matrix A is initialized from a Gaussian distribution, it has dimensions d x r
         self.A = nn.Parameter(torch.randn(d, r))
-        # Matrix B is initialized as a zero matrix
+        # Matrix B is initialized as a zero matrix, it has dimensions r x k
         self.B = nn.Parameter(torch.zeros(r, k))
-        # Alpha is a scaling parameter that controls the strength of the adaptation
+        # Alpha is a scaling parameter that controls the strength of the adaptation, it is a scalar
         self.alpha = alpha
 
     def forward(self, x):
-        # The input x is multiplied by A and B, then scaled by alpha
+        # The input x is multiplied by A and B, then scaled by alpha, it has dimensions d x k
         x = self.alpha * (x @ self.A @ self.B)
         return x
 
 class MyNeuralNetwork(nn.Module):
+    """
+    A simple neural network with 4 linear layers and ReLU activation functions.
+    """
     def __init__(self):
+        """
+        Initializes the neural network.
+        """
         super(MyNeuralNetwork, self).__init__()
+        # there are 4 layers in the network
+        # fc1: 10 -> 20
+        # fc2: 20 -> 20
+        # fc3: 20 -> 20
+        # fc4: 20 -> 10
+        # the last layer is a linear layer that outputs the final result
         self.fc1 = nn.Linear(10, 20)
         self.fc2 = nn.Linear(20, 20)
-        self.fc3 = nn.Linear(20, 20)
-        self.fc4 = nn.Linear(20, 10)
+        self.fc3 = nn.Linear(20, 20) # this is the last layer
+        self.fc4 = nn.Linear(20, 10) # this is the output layer
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -33,6 +102,9 @@ class MyNeuralNetwork(nn.Module):
 
 class MyNeuralNetworkWithLoRA(nn.Module):
     def __init__(self, model, r, alpha):
+        """
+        Initializes the neural network with LoRA.
+        """
         super(MyNeuralNetworkWithLoRA, self).__init__()
         self.model = model
 
