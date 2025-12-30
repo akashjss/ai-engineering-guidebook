@@ -1,0 +1,16 @@
+[project]
+name = "ai-engineering-guidebook"
+version = "0.1.0"
+description = "AI Engineering Guidebook examples"
+requires-python = ">=3.12"
+dependencies = [
+    "distilabel[hf,ollama]>=1.0.0",
+    "pandas",
+    "beautifulsoup4",
+    "torch",
+    "instructor",
+]
+
+[tool.uv]
+managed = true
+
